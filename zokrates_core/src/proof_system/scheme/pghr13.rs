@@ -5,6 +5,7 @@ use proof_system::solidity::{
 use proof_system::{G1Affine, G2Affine, SolidityCompatibleField, SolidityCompatibleScheme};
 use regex::Regex;
 use zokrates_field::Field;
+use proof_system::platon_cpp::{PlatonCppCompatibleField, PlatonCppCompatibleScheme};
 
 pub struct PGHR13;
 
@@ -313,3 +314,230 @@ const CONTRACT_TEMPLATE: &str = r#"contract Verifier {
     }
 }
 "#;
+impl<T: PlatonCppCompatibleField> PlatonCppCompatibleScheme<T> for PGHR13 {
+    fn export_platon_cpp_verifier(
+        vk: <PGHR13 as Scheme<T>>::VerificationKey,
+    ) -> String {
+        let mut template_text = PLATON_CPP_CONTRACT_TEMPLATE.to_string();
+
+        // replace things in template
+        let vk_regex = Regex::new(r#"(<%vk_[^i%]*%>)"#).unwrap();
+        let vk_ic_repeat_regex = Regex::new(r#"(<%vk_ic_pts%>)"#).unwrap();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.a.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.b.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.c.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.gamma.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.gamma_beta_1.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.gamma_beta_2.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        template_text = vk_regex
+            .replace(template_text.as_str(), vk.z.to_platon_cpp_string().as_str())
+            .into_owned();
+
+        let ic_count: usize = vk.ic.len();
+        
+
+        let mut ic_repeat_text = String::new();
+        for (i, g1) in vk.ic.iter().enumerate() {
+            ic_repeat_text.push_str(
+                format!(
+                    "G1({})",
+                    g1.to_platon_cpp_string().as_str()
+                )
+                    .as_str(),
+            );
+            if i < ic_count - 1 {
+                ic_repeat_text.push_str(",\n        ");
+            }
+        }
+
+        template_text = vk_ic_repeat_regex
+            .replace(template_text.as_str(), ic_repeat_text.as_str())
+            .into_owned();
+
+        template_text   
+    }
+}
+
+const PLATON_CPP_CONTRACT_TEMPLATE : &str = r#"#pragma once
+#include "platon/crypto/bn256/bn256.hpp"
+
+namespace platon {
+namespace crypto {
+namespace bn256 {
+namespace pghr13 {
+namespace pairing {
+
+/// @return the negation of p, i.e. p.addition(p.negate()) should be zero.
+G1 Negate(const G1 &p) {
+  G1 p1 = p;
+  return p1.Neg();
+}  /// @return r the sum of two points of G1
+G1 Addition(const G1 &p1, const G1 &p2) {
+  G1 res = p1;
+  return res.Add(p2);
+}
+
+/// @return r the sum of two points of G2
+G2 Addition(const G2 &p1, const G2 &p2) {
+  G2 r = p1;
+  return r.Add(p2);
+}
+
+/// @return r the product of a point on G1 and a scalar, i.e.
+/// p == p.scalar_mul(1) and p.addition(p) == p.scalar_mul(2) for all points p.
+G1 ScalarMul(const G1 &p, const std::uint256_t &s) {
+  G1 r = p;
+  return r.ScalarMul(s);
+}
+
+/// Convenience method for a pairing check for two pairs.
+bool PairingProd2(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2) {
+  std::array<G1, 2> g1{a1, b1};
+  std::array<G2, 2> g2{a2, b2};
+  return bn256::pairing(g1, g2) == 0;
+}
+/// Convenience method for a pairing check for three pairs.
+bool PairingProd3(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2,
+                  const G1 &c1, const G2 &c2) {
+  std::array<G1, 3> g1{a1, b1, c1};
+  std::array<G2, 3> g2{a2, b2, c2};
+  return bn256::pairing(g1, g2) == 0;
+}
+/// Convenience method for a pairing check for four pairs.
+bool PairingProd4(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2,
+                  const G1 &c1, const G2 &c2, const G1 &d1, const G2 &d2) {
+  std::array<G1, 4> g1{a1, b1, c1, d1};
+  std::array<G2, 4> g2{a2, b2, c2, d2};
+  return bn256::pairing(g1, g2) == 0;
+}
+
+G2 P2() {
+  return G2(
+      "11559732032986387107991004021392285783925812861821192530917403151452391805634"_uint256,
+      "10857046999023057135944570762232829481370756359578518086990519993285655852781"_uint256,
+      "4082367875863433681332203403145435568316851327593401208105741076214120093531"_uint256,
+      "8495653923123431417604973247489272438418190587263600148770280649306958101930"_uint256
+      );
+}
+};  // namespace pairing
+
+class Verifier {
+ public:
+  struct VerifyingKey {
+    G2 a;
+    G1 b;
+    G2 c;
+    G2 gamma;
+    G1 gamma_beta_1;
+    G2 gamma_beta_2;
+    G2 z;
+    std::vector<G1> ic;
+  };
+
+  struct Proof {
+    G1 a;
+    G1 a_p;
+    G2 b;
+    G1 b_p;
+    G1 c;
+    G1 c_p;
+    G1 h;
+    G1 k;
+  };
+
+  VerifyingKey GetVerifyingKey() {
+    return VerifyingKey{
+        G2(<%vk_a%>),
+        G1(<%vk_b%>),
+        G2(<%vk_c%>),
+        G2(<%vk_g%>),
+        G1(<%vk_gb1%>),
+        G2(<%vk_gb2%>),
+        G2(<%vk_z%>),
+        {
+        <%vk_ic_pts%>
+        }
+        };
+  }
+
+  std::uint256_t Verify(const std::vector<std::uint256_t> &inputs,
+                        const Proof &proof) {
+    std::uint256_t snark_scalar_field =
+        "21888242871839275222246405745257275088548364400416034343698204186575808495617"_uint256;
+    VerifyingKey vk = GetVerifyingKey();
+    platon_assert(inputs.size() + 1 == vk.ic.size());
+
+    // Compute the linear combination vk_x
+    G1 vk_x = G1(0, 0);
+    for (size_t i = 0; i < inputs.size(); i++) {
+      platon_assert(inputs[i] < snark_scalar_field);
+      vk_x =
+          pairing::Addition(vk_x, pairing::ScalarMul(vk.ic[i + 1], inputs[i]));
+    }
+
+    vk_x = pairing::Addition(vk_x, vk.ic[0]);
+    if (!pairing::PairingProd2(proof.a, vk.a, pairing::Negate(proof.a_p),
+                               pairing::P2()))
+      return 1;
+    if (!pairing::PairingProd2(vk.b, proof.b, pairing::Negate(proof.b_p),
+                               pairing::P2()))
+      return 2;
+    if (!pairing::PairingProd2(proof.c, vk.c, pairing::Negate(proof.c_p),
+                               pairing::P2()))
+      return 3;
+    if (!pairing::PairingProd3(proof.k, vk.gamma,
+                               pairing::Negate(pairing::Addition(
+                                   vk_x, pairing::Addition(proof.a, proof.c))),
+                               vk.gamma_beta_2,
+                               pairing::Negate(vk.gamma_beta_1), proof.b))
+      return 4;
+    if (!pairing::PairingProd3(pairing::Addition(vk_x, proof.a), proof.b,
+                               pairing::Negate(proof.h), vk.z,
+                               pairing::Negate(proof.c), pairing::P2()))
+      return 5;
+    return 0;
+  }
+  bool VerifyTx(const std::array<std::uint256_t, 2> &a,
+                const std::array<std::uint256_t, 2> &a_p,
+                const std::array<std::array<std::uint256_t, 2>, 2> &b,
+                const std::array<std::uint256_t, 2> &b_p,
+                const std::array<std::uint256_t, 2> &c,
+                const std::array<std::uint256_t, 2> &c_p,
+                const std::array<std::uint256_t, 2> &h,
+                const std::array<std::uint256_t, 2> &k,
+                const std::vector<std::uint256_t> &inputs) {
+    Proof proof{
+        G1(a[0], a[1]),     G1(a_p[0], a_p[1]), G2(b[0][1], b[0][0], b[1][1], b[1][0]),
+        G1(b_p[0], b_p[1]), G1(c[0], c[1]),     G1(c_p[0], c_p[1]),
+        G1(h[0], h[1]),     G1(k[0], k[1])};
+
+    return Verify(inputs, proof) == 0;
+  }
+  bool VerifyTx(const Proof &proof, const std::vector<std::uint256_t> &inputs) {
+    return Verify(inputs, proof) == 0;
+  }
+};
+
+}  // namespace pghr13
+}  // namespace bn256
+}  // namespace crypto
+}  // namespace platon"#;

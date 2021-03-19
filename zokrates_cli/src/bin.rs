@@ -24,7 +24,7 @@ use zokrates_core::ir::{self, ProgEnum};
 use zokrates_core::proof_system::{
     ark::Ark, bellman::Bellman, gm17::GM17, groth16::G16, SolidityCompatibleField,
 };
-use zokrates_core::proof_system::{Backend, Scheme, SolidityAbi, SolidityCompatibleScheme};
+use zokrates_core::proof_system::{Backend, Scheme, SolidityAbi, SolidityCompatibleScheme, platon_cpp::PlatonCppCompatibleField, platon_cpp::PlatonCppCompatibleScheme};
 use zokrates_core::typed_absy::abi::Abi;
 use zokrates_core::typed_absy::{types::Signature, Type};
 use zokrates_field::{Bls12_377Field, Bls12_381Field, Bn128Field, Bw6_761Field, Field};
@@ -82,7 +82,7 @@ fn cli_generate_proof<T: Field, S: Scheme<T>, B: Backend<T, S>>(
     Ok(())
 }
 
-fn cli_export_verifier<T: SolidityCompatibleField, S: SolidityCompatibleScheme<T>>(
+fn cli_export_verifier<T: SolidityCompatibleField+ PlatonCppCompatibleField, S: SolidityCompatibleScheme<T>+ PlatonCppCompatibleScheme<T>>(
     sub_matches: &ArgMatches,
 ) -> Result<(), String> {
     println!("Exporting verifier...");
@@ -98,7 +98,17 @@ fn cli_export_verifier<T: SolidityCompatibleField, S: SolidityCompatibleScheme<T
 
     let abi = SolidityAbi::from(sub_matches.value_of("solidity-abi").unwrap())?;
 
-    let verifier = S::export_solidity_verifier(vk, abi);
+    let contract_type = ExportContractTypeParameter::try_from(sub_matches.value_of("contract-type").unwrap())?;
+   
+    let verifier: String;
+    match contract_type {
+        ExportContractTypeParameter::Solidity => {
+            verifier = S::export_solidity_verifier(vk, abi);
+        },
+        ExportContractTypeParameter::PlatonCpp =>{
+            verifier = S::export_platon_cpp_verifier(vk);
+        }
+    }
 
     //write output file
     let output_path = Path::new(sub_matches.value_of("output").unwrap());
@@ -440,6 +450,7 @@ fn cli() -> Result<(), String> {
     let default_backend = env::var("ZOKRATES_BACKEND").unwrap_or(constants::BELLMAN.into());
     let default_scheme = env::var("ZOKRATES_PROVING_SCHEME").unwrap_or(constants::G16.into());
     let default_solidity_abi = "v1";
+    let default_contract_type = "solidity";
     let default_stdlib_path = dirs::home_dir()
         .map(|p| p.join(".zokrates/stdlib"))
         .unwrap();
@@ -573,7 +584,7 @@ fn cli() -> Result<(), String> {
         )
     )
     .subcommand(SubCommand::with_name("export-verifier")
-        .about("Exports a verifier as Solidity smart contract")
+        .about("Exports a verifier as Solidity or WASM smart contract")
         .arg(Arg::with_name("input")
             .short("i")
             .long("input")
@@ -614,7 +625,15 @@ fn cli() -> Result<(), String> {
             .possible_values(&["v1", "v2"])
             .default_value(&default_solidity_abi)
             .required(false)
-        )
+        ).arg(Arg::with_name("contract-type")
+        .short("t")
+        .long("contract-type")
+        .help("Contract type to use to export the verifier")
+        .takes_value(true)
+        .possible_values(&["solidity", "platon-cpp"])
+        .default_value(&default_contract_type)
+        .required(false)
+    )
     )
     .subcommand(SubCommand::with_name("compute-witness")
         .about("Calculates a witness for a given constraint system")
@@ -1050,7 +1069,7 @@ mod tests {
 
     #[test]
     fn compile_examples() {
-        for p in glob("./examples/**/*").expect("Failed to read glob pattern") {
+        for p in glob("/home/yangzhou/thirdparty/ZoKrates/zokrates_cli/examples/**/*").expect("Failed to read glob pattern") {
             let path = match p {
                 Ok(x) => x,
                 Err(why) => panic!("Error: {:?}", why),
@@ -1073,7 +1092,7 @@ mod tests {
             let mut source = String::new();
             reader.read_to_string(&mut source).unwrap();
 
-            let stdlib = std::fs::canonicalize("../zokrates_stdlib/stdlib").unwrap();
+            let stdlib = std::fs::canonicalize("/home/yangzhou/thirdparty/ZoKrates/zokrates_stdlib/stdlib").unwrap();
             let resolver = FileSystemResolver::with_stdlib_root(stdlib.to_str().unwrap());
             let res = compile::<Bn128Field, _>(source, path, Some(&resolver));
 

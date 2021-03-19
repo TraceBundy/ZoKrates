@@ -6,10 +6,10 @@ pub mod libsnark;
 
 mod scheme;
 mod solidity;
+pub mod platon_cpp;
 
 pub use self::scheme::*;
 pub use self::solidity::*;
-
 use crate::ir;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -60,6 +60,15 @@ impl ToString for G1Affine {
     }
 }
 
+impl G1Affine {
+    fn to_platon_cpp_string(&self) ->String {
+        format!(
+            "std::uint256_t(\"{}\"), std::uint256_t(\"{}\")",
+            self.0, self.1
+        )
+    }
+}
+
 impl ToString for G2AffineFq {
     fn to_string(&self) -> String {
         format!("{}, {}", self.0, self.1)
@@ -75,8 +84,16 @@ impl ToString for G2Affine {
             (self.1).1
         )
     }
+
 }
 
+impl G2Affine {
+    fn to_platon_cpp_string(&self) ->String {
+        format!(
+            "std::uint256_t(\"{}\"), std::uint256_t(\"{}\"), std::uint256_t(\"{}\"), std::uint256_t(\"{}\")",
+            (self.0).1, (self.0).0, (self.1).1,(self.1).0)
+    }
+}
 pub trait Backend<T: Field, S: Scheme<T>> {
     fn setup(program: ir::Prog<T>) -> SetupKeypair<S::VerificationKey>;
 

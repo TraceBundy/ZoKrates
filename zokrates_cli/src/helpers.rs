@@ -10,6 +10,12 @@ pub enum CurveParameter {
     Bw6_761,
 }
 
+#[derive(Debug)]
+pub enum ExportContractTypeParameter {
+    Solidity,
+    PlatonCpp,
+}
+
 pub enum BackendParameter {
     Bellman,
     Ark,
@@ -34,6 +40,17 @@ impl TryFrom<&str> for CurveParameter {
             BLS12_377 => Ok(CurveParameter::Bls12_377),
             BW6_761 => Ok(CurveParameter::Bw6_761),
             _ => Err(format!("Unknown curve {}", s)),
+        }
+    }
+}
+
+impl TryFrom<&str> for ExportContractTypeParameter {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            SOLIDITY => Ok(ExportContractTypeParameter::Solidity),
+            PLATON_CPP => Ok(ExportContractTypeParameter::PlatonCpp),
+            _ => Err(format!("Unknown contract type {}", s)),
         }
     }
 }

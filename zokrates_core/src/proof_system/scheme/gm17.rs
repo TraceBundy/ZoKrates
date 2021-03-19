@@ -1,3 +1,4 @@
+use proof_system::platon_cpp::{PlatonCppCompatibleField, PlatonCppCompatibleScheme};
 use proof_system::scheme::Scheme;
 use proof_system::solidity::{
     SolidityAbi, SOLIDITY_G2_ADDITION_LIB, SOLIDITY_PAIRING_LIB, SOLIDITY_PAIRING_LIB_V2,
@@ -7,7 +8,6 @@ use proof_system::{
 };
 use regex::Regex;
 use zokrates_field::{Bls12_377Field, Bls12_381Field, Bn128Field, Bw6_761Field, Field};
-use proof_system::platon_cpp::{PlatonCppCompatibleField, PlatonCppCompatibleScheme};
 
 pub trait NotBw6_761Field {}
 impl NotBw6_761Field for Bls12_377Field {}
@@ -283,9 +283,7 @@ contract Verifier {
 }
 "#;
 impl<T: PlatonCppCompatibleField + NotBw6_761Field> PlatonCppCompatibleScheme<T> for GM17 {
-    fn export_platon_cpp_verifier(
-        vk: <GM17 as Scheme<T>>::VerificationKey,
-    ) -> String {
+    fn export_platon_cpp_verifier(vk: <GM17 as Scheme<T>>::VerificationKey) -> String {
         let mut template_text = PLATON_CPP_CONTRACT_TEMPLATE.to_string();
 
         // replace things in template
@@ -297,33 +295,39 @@ impl<T: PlatonCppCompatibleField + NotBw6_761Field> PlatonCppCompatibleScheme<T>
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.g_alpha.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.g_alpha.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.h_beta.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.h_beta.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.g_gamma.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.g_gamma.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.h_gamma.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.h_gamma.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         let query_count: usize = vk.query.len();
-        
 
         let mut query_repeat_text = String::new();
         for (i, g1) in vk.query.iter().enumerate() {
-            query_repeat_text.push_str(
-                format!(
-                    "G1({})",
-                    g1.to_platon_cpp_string().as_str()
-                )
-                    .as_str(),
-            );
+            query_repeat_text
+                .push_str(format!("G1({})", g1.to_platon_cpp_string().as_str()).as_str());
             if i < query_count - 1 {
                 query_repeat_text.push_str(",\n        ");
             }
@@ -332,13 +336,12 @@ impl<T: PlatonCppCompatibleField + NotBw6_761Field> PlatonCppCompatibleScheme<T>
         template_text = vk_query_repeat_regex
             .replace(template_text.as_str(), query_repeat_text.as_str())
             .into_owned();
-        
+
         template_text
-
     }
-    }
+}
 
-const PLATON_CPP_CONTRACT_TEMPLATE : &str = r#"#pragma once
+const PLATON_CPP_CONTRACT_TEMPLATE: &str = r#"#pragma once
 #include "platon/crypto/bn256/bn256.hpp"
 namespace platon {
 namespace crypto {

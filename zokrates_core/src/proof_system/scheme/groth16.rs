@@ -1,11 +1,11 @@
+use proof_system::platon_cpp::{PlatonCppCompatibleField, PlatonCppCompatibleScheme};
 use proof_system::scheme::Scheme;
 use proof_system::solidity::{
     SolidityAbi, SOLIDITY_G2_ADDITION_LIB, SOLIDITY_PAIRING_LIB, SOLIDITY_PAIRING_LIB_V2,
 };
 use proof_system::{G1Affine, G2Affine, SolidityCompatibleField, SolidityCompatibleScheme};
 use regex::Regex;
-use zokrates_field::{Field};
-use proof_system::platon_cpp::{PlatonCppCompatibleField, PlatonCppCompatibleScheme};
+use zokrates_field::Field;
 
 pub struct G16;
 
@@ -255,41 +255,45 @@ contract Verifier {
 "#;
 
 impl<T: PlatonCppCompatibleField> PlatonCppCompatibleScheme<T> for G16 {
-    fn export_platon_cpp_verifier(
-        vk: <G16 as Scheme<T>>::VerificationKey,
-    ) -> String {
+    fn export_platon_cpp_verifier(vk: <G16 as Scheme<T>>::VerificationKey) -> String {
         let mut template_text = String::from(PLATON_CPP_CONTRACT_TEMPLATE);
         let vk_regex = Regex::new(r#"(<%vk_[^i%]*%>)"#).unwrap();
         let vk_gamma_abc_repeat_regex = Regex::new(r#"(<%vk_gamma_abc_pts%>)"#).unwrap();
-        
+
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.alpha.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.alpha.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.beta.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.beta.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.gamma.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.gamma.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
 
         template_text = vk_regex
-            .replace(template_text.as_str(), vk.delta.to_platon_cpp_string().as_str())
+            .replace(
+                template_text.as_str(),
+                vk.delta.to_platon_cpp_string().as_str(),
+            )
             .into_owned();
-        
 
         let mut gamma_abc_repeat_text = String::new();
         let gamma_abc_count: usize = vk.gamma_abc.len();
 
         for (i, g1) in vk.gamma_abc.iter().enumerate() {
-            gamma_abc_repeat_text.push_str(
-                format!(
-                    "G1({})",
-                    g1.to_platon_cpp_string().as_str()
-                )
-                    .as_str(),
-            );
+            gamma_abc_repeat_text
+                .push_str(format!("G1({})", g1.to_platon_cpp_string().as_str()).as_str());
             if i < gamma_abc_count - 1 {
                 gamma_abc_repeat_text.push_str(",\n        ");
             }

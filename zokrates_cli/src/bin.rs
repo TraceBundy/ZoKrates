@@ -24,7 +24,10 @@ use zokrates_core::ir::{self, ProgEnum};
 use zokrates_core::proof_system::{
     ark::Ark, bellman::Bellman, gm17::GM17, groth16::G16, SolidityCompatibleField,
 };
-use zokrates_core::proof_system::{Backend, Scheme, SolidityAbi, SolidityCompatibleScheme, platon_cpp::PlatonCppCompatibleField, platon_cpp::PlatonCppCompatibleScheme};
+use zokrates_core::proof_system::{
+    platon_cpp::PlatonCppCompatibleField, platon_cpp::PlatonCppCompatibleScheme, Backend, Scheme,
+    SolidityAbi, SolidityCompatibleScheme,
+};
 use zokrates_core::typed_absy::abi::Abi;
 use zokrates_core::typed_absy::{types::Signature, Type};
 use zokrates_field::{Bls12_377Field, Bls12_381Field, Bn128Field, Bw6_761Field, Field};
@@ -82,7 +85,10 @@ fn cli_generate_proof<T: Field, S: Scheme<T>, B: Backend<T, S>>(
     Ok(())
 }
 
-fn cli_export_verifier<T: SolidityCompatibleField+ PlatonCppCompatibleField, S: SolidityCompatibleScheme<T>+ PlatonCppCompatibleScheme<T>>(
+fn cli_export_verifier<
+    T: SolidityCompatibleField + PlatonCppCompatibleField,
+    S: SolidityCompatibleScheme<T> + PlatonCppCompatibleScheme<T>,
+>(
     sub_matches: &ArgMatches,
 ) -> Result<(), String> {
     println!("Exporting verifier...");
@@ -98,14 +104,15 @@ fn cli_export_verifier<T: SolidityCompatibleField+ PlatonCppCompatibleField, S: 
 
     let abi = SolidityAbi::from(sub_matches.value_of("solidity-abi").unwrap())?;
 
-    let contract_type = ExportContractTypeParameter::try_from(sub_matches.value_of("contract-type").unwrap())?;
-   
+    let contract_type =
+        ExportContractTypeParameter::try_from(sub_matches.value_of("contract-type").unwrap())?;
+
     let verifier: String;
     match contract_type {
         ExportContractTypeParameter::Solidity => {
             verifier = S::export_solidity_verifier(vk, abi);
-        },
-        ExportContractTypeParameter::PlatonCpp =>{
+        }
+        ExportContractTypeParameter::PlatonCpp => {
             verifier = S::export_platon_cpp_verifier(vk);
         }
     }
@@ -1069,7 +1076,9 @@ mod tests {
 
     #[test]
     fn compile_examples() {
-        for p in glob("/home/yangzhou/thirdparty/ZoKrates/zokrates_cli/examples/**/*").expect("Failed to read glob pattern") {
+        for p in glob("/home/yangzhou/thirdparty/ZoKrates/zokrates_cli/examples/**/*")
+            .expect("Failed to read glob pattern")
+        {
             let path = match p {
                 Ok(x) => x,
                 Err(why) => panic!("Error: {:?}", why),
@@ -1092,7 +1101,9 @@ mod tests {
             let mut source = String::new();
             reader.read_to_string(&mut source).unwrap();
 
-            let stdlib = std::fs::canonicalize("/home/yangzhou/thirdparty/ZoKrates/zokrates_stdlib/stdlib").unwrap();
+            let stdlib =
+                std::fs::canonicalize("/home/yangzhou/thirdparty/ZoKrates/zokrates_stdlib/stdlib")
+                    .unwrap();
             let resolver = FileSystemResolver::with_stdlib_root(stdlib.to_str().unwrap());
             let res = compile::<Bn128Field, _>(source, path, Some(&resolver));
 

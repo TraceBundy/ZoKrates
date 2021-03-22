@@ -312,31 +312,8 @@ const PLATON_CPP_CONTRACT_TEMPLATE: &str = r#"#pragma once
 namespace platon {
 namespace crypto {
 namespace bn256 {
-namespace zk {
+namespace g16 {
 namespace pairing {
-
-/// @return the negation of p, i.e. p.addition(p.negate()) should be zero.
-G1 Negate(const G1 &p) {
-  G1 p1 = p;
-  return p1.Neg();
-}  /// @return r the sum of two points of G1
-G1 Addition(const G1 &p1, const G1 &p2) {
-  G1 res = p1;
-  return res.Add(p2);
-}
-
-/// @return r the sum of two points of G2
-G2 Addition(const G2 &p1, const G2 &p2) {
-  G2 r = p1;
-  return r.Add(p2);
-}
-
-/// @return r the product of a point on G1 and a scalar, i.e.
-/// p == p.scalar_mul(1) and p.addition(p) == p.scalar_mul(2) for all points p.
-G1 ScalarMul(const G1 &p, const std::uint256_t &s) {
-  G1 r = p;
-  return r.ScalarMul(s);
-}
 
 /// Convenience method for a pairing check for two pairs.
 bool PairingProd2(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2) {
@@ -392,15 +369,15 @@ class Verifier {
     // Compute the linear combination vk_x
     G1 vk_x = G1{0, 0};
     for (int i = 0; i < inputs.size(); i++) {
-      G1 p2 = pairing::ScalarMul(vk.gamma_abc[i + 1], inputs[i]);
-      vk_x = pairing::Addition(
-          vk_x, pairing::ScalarMul(vk.gamma_abc[i + 1], inputs[i]));
+      G1 p2 = ScalarMul(vk.gamma_abc[i + 1], inputs[i]);
+      vk_x = Addition(
+          vk_x, ScalarMul(vk.gamma_abc[i + 1], inputs[i]));
     }
-    vk_x = pairing::Addition(vk_x, vk.gamma_abc[0]);
+    vk_x = Addition(vk_x, vk.gamma_abc[0]);
 
-    if (!pairing::PairingProd4(proof.a, proof.b, pairing::Negate(vk_x),
-                               vk.gamma, pairing::Negate(proof.c), vk.delta,
-                               pairing::Negate(vk.alpha), vk.beta))
+    if (!pairing::PairingProd4(proof.a, proof.b, Neg(vk_x),
+                               vk.gamma, Neg(proof.c), vk.delta,
+                               Neg(vk.alpha), vk.beta))
       return 1;
     return 0;
   }
@@ -413,7 +390,7 @@ class Verifier {
     return Verify(inputs, proof) == 0;
   }
 };
-}  // namespace zk
+}  // namespace g16
 }  // namespace bn256
 }  // namespace crypto
 }  // namespace platon

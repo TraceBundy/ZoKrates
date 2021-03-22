@@ -349,30 +349,6 @@ namespace bn256 {
 namespace gm17 {
 namespace pairing {
 
-/// @return the negation of p, i.e. p.addition(p.negate()) should be zero.
-G1 Negate(const G1 &p) {
-  G1 p1 = p;
-  return p1.Neg();
-}  
-/// @return r the sum of two points of G1
-G1 Addition(const G1 &p1, const G1 &p2) {
-  G1 res = p1;
-  return res.Add(p2);
-}
-
-/// @return r the sum of two points of G2
-G2 Addition(const G2 &p1, const G2 &p2) {
-  G2 r = p1;
-  return r.Add(p2);
-}
-
-/// @return r the product of a point on G1 and a scalar, i.e.
-/// p == p.scalar_mul(1) and p.addition(p) == p.scalar_mul(2) for all points p.
-G1 ScalarMul(const G1 &p, const std::uint256_t &s) {
-  G1 r = p;
-  return r.ScalarMul(s);
-}
-
 /// Convenience method for a pairing check for two pairs.
 bool PairingProd2(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2) {
   std::array<G1, 2> g1{a1, b1};
@@ -394,14 +370,6 @@ bool PairingProd4(const G1 &a1, const G2 &a2, const G1 &b1, const G2 &b2,
   return bn256::pairing(g1, g2) == 0;
 }
 
-G2 P2() {
-  return G2(
-      "11559732032986387107991004021392285783925812861821192530917403151452391805634"_uint256,
-      "10857046999023057135944570762232829481370756359578518086990519993285655852781"_uint256,
-      "4082367875863433681332203403145435568316851327593401208105741076214120093531"_uint256,
-      "8495653923123431417604973247489272438418190587263600148770280649306958101930"_uint256
-      );
-}
 };  // namespace pairing
 
 class Verifier {
@@ -444,10 +412,10 @@ class Verifier {
     G1 vk_x(0, 0);
     for (size_t i = 0; i < inputs.size(); i++) {
       platon_assert(inputs[i] < snark_scalar_field);
-      vk_x = pairing::Addition(vk_x,
-                               pairing::ScalarMul(vk.query[i + 1], inputs[i]));
+      vk_x = Addition(vk_x,
+                               ScalarMul(vk.query[i + 1], inputs[i]));
     }
-    vk_x = pairing::Addition(vk_x, vk.query[0]);
+    vk_x = Addition(vk_x, vk.query[0]);
     /**
      * e(A*G^{alpha}, B*H^{beta}) = e(G^{alpha}, H^{beta}) * e(G^{psi},
      * H^{gamma})
@@ -457,15 +425,15 @@ class Verifier {
 
     if (!pairing::PairingProd4(
             vk.g_alpha, vk.h_beta, vk_x, vk.h_gamma, proof.c, vk.h,
-            pairing::Negate(pairing::Addition(proof.a, vk.g_alpha)),
-            pairing::Addition(proof.b, vk.h_beta))){
+            Neg(Addition(proof.a, vk.g_alpha)),
+            Addition(proof.b, vk.h_beta))){
       return 1;
     }
 
     /**
      * e(A, H^{gamma}) = e(G^{gamma}, b)
      */
-    if (!pairing::PairingProd2(proof.a, vk.h_gamma, pairing::Negate(vk.g_gamma),
+    if (!pairing::PairingProd2(proof.a, vk.h_gamma, Neg(vk.g_gamma),
                                proof.b))
       return 2;
     return 0;

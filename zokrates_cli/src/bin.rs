@@ -1076,9 +1076,7 @@ mod tests {
 
     #[test]
     fn compile_examples() {
-        for p in glob("/home/yangzhou/thirdparty/ZoKrates/zokrates_cli/examples/**/*")
-            .expect("Failed to read glob pattern")
-        {
+        for p in glob("./examples/**/*").expect("Failed to read glob pattern") {
             let path = match p {
                 Ok(x) => x,
                 Err(why) => panic!("Error: {:?}", why),
@@ -1101,9 +1099,7 @@ mod tests {
             let mut source = String::new();
             reader.read_to_string(&mut source).unwrap();
 
-            let stdlib =
-                std::fs::canonicalize("/home/yangzhou/thirdparty/ZoKrates/zokrates_stdlib/stdlib")
-                    .unwrap();
+            let stdlib = std::fs::canonicalize("../zokrates_stdlib/stdlib").unwrap();
             let resolver = FileSystemResolver::with_stdlib_root(stdlib.to_str().unwrap());
             let res = compile::<Bn128Field, _>(source, path, Some(&resolver));
 
